@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type SoapRequest struct {
@@ -25,25 +26,37 @@ var code = map[string]string{
 	"\"": "&quot;",
 }
 
-func (this *SoapRequest) SendAndParseResponseTo(v interface{}) {
+func (this *SoapRequest) SendAndParseResponseTo(v interface{}) error {
 	encodedCondition := createConditionString(this.Condition)
+
 	payload := initPayload(this.Template, this.Action, encodedCondition)
 	payloadByte := bytes.NewBuffer([]byte(payload))
+
 	req, err := http.NewRequest("POST", this.UrlString, payloadByte)
 	check(err)
 	req.Header.Add("Content-Type", "text/xml")
-	client := http.Client{}
+
+	timeout := time.Duration(30000 * time.Millisecond)
+	client := http.Client{
+		Timeout: timeout,
+	}
+
 	resp, err := client.Do(req)
-	check(err)
+	if err != nil {
+		return err
+	}
+
 	if resp.StatusCode != 200 {
 		fmt.Errorf("Response status is %v", resp.StatusCode)
 	}
-
 	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	check(err)
 	resultInfo := getUnescapedResponse(string(body))
+	fmt.Println(resultInfo)
 	xml.Unmarshal([]byte(resultInfo), v)
+	return nil
 }
 
 func EscapeXML(xmlString string) string {
@@ -94,6 +107,6 @@ func parseToXml(v interface{}) string {
 
 func check(err error) {
 	if err != nil {
-		fmt.Errorf("%v", err)
+		fmt.Printf("%#v", err)
 	}
 }
