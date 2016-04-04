@@ -26,6 +26,8 @@ var code = map[string]string{
 	"\"": "&quot;",
 }
 
+var patterns = []string{"resultInfo", "orderInfo"}
+
 func (this *SoapRequest) SendAndParseResponseTo(v interface{}) error {
 	encodedCondition := createConditionString(this.Condition)
 
@@ -81,14 +83,21 @@ func createConditionString(condition interface{}) string {
 	return encodedCondition
 }
 
-func getResponse(xmlString string) string {
-	r, _ := regexp.Compile("(&lt;resultInfo)(.+)(resultInfo&gt;)")
-	newString := r.FindString(xmlString)
-	return newString
+func GetResponse(xmlString string) string {
+	for _, pattern := range patterns {
+		regexStr := fmt.Sprintf("(&lt;%s)(.+)(%s&gt;)", pattern, pattern)
+		r, _ := regexp.Compile(regexStr)
+		newString := r.FindString(xmlString)
+		if newString != "" {
+			return newString
+		}
+	}
+
+	return ""
 }
 
 func getUnescapedResponse(xmlString string) string {
-	xmlString = getResponse(xmlString)
+	xmlString = GetResponse(xmlString)
 	newString := UnescapeXML(xmlString)
 	return newString
 }
